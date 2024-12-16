@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quét QR từ Camera</title>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr/dist/jsQR.js"></script>
+    <style>
+        #video {
+            width: 100%;
+            height: auto;
+            border: 1px solid #ccc;
+        }
+        #qr-result {
+            margin-top: 20px;
+            font-size: 1.2em;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <video id="video" autoplay></video>
+    <div id="qr-result">Nội dung QR Code sẽ hiển thị ở đây</div>
+
+    <script>
+        const video = document.getElementById('video');
+        const qrResult = document.getElementById('qr-result');
+        camera();
+
+        function camera() {
+            // Khởi tạo camera
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+                .then(stream => {
+                    video.srcObject = stream;
+                    video.setAttribute("playsinline", true); // Cho phép quét trên các thiết bị di động
+                    startScanning();
+                })
+                .catch(err => {
+                    qrResult.innerText = 'Không thể truy cập camera: ' + err.message;
+                });
+        }
+        
+        // Hàm bắt đầu quét mã QR
+        function startScanning() {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            function scan() {
+                if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                    canvas.height = video.videoHeight;
+                    canvas.width = video.videoWidth;
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const code = jsQR(imageData.data, canvas.width, canvas.height);
+
+                    if (code) {
+                        console.log(code.data)
+                        FileMaker.PerformScriptWithOption ( "WEBSetData", code.data, "0" );
+                        // qrResult.innerText = 'Nội dung QR Code: ' + code.data;
+                        video.srcObject.getTracks().forEach(track => track.stop());
+                        setTimeout(() => {
+                            camera();
+                        }, 2000);
+                        
+                        
+                    } else {
+                        qrResult.innerText = 'Không tìm thấy mã QR. Đang quét lại...';
+                        requestAnimationFrame(scan); // Tiếp tục quét nếu không có mã QR
+                    }
+                } else {
+                    requestAnimationFrame(scan); // Tiếp tục quét nếu video chưa sẵn sàng
+                }
+            }
+            scan();
+        }
+    </script>
+</body>
+</html>
